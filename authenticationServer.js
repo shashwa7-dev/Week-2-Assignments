@@ -28,10 +28,56 @@
 
   Testing the server - run `npm run test-authenticationServer` command in terminal
  */
+const { v4: uuidv4 } = require("uuid");
+const express = require("express");
+const bodyParser = require("body-parser");
 
-const express = require("express")
 const PORT = 3000;
 const app = express();
+var users = [];
 // write your logic here, DONT WRITE app.listen(3000) when you're running tests, the tests will automatically start the server
+//get file contents
 
+//using body parser middleware for reading json body
+// app.use(bodyParser.json()); no need to use body parser
+app.use(express.json());
+
+app.get("/", (req, res) => {
+  res.send("Auth Server");
+});
+app.post("/signup", (req, res) => {
+  let userData = req.body;
+  console.log("user", userData);
+  let userAlreadyExists =
+    users.filter((user) => user.email === userData.email).length > 0
+      ? true
+      : false;
+  if (userData && !userAlreadyExists) {
+    const user = { id: uuidv4(), ...userData };
+    users.push({ id: uuidv4(), ...userData });
+  } else {
+    res.status(400).json({ error: "User/Email Alredy Exists!" });
+  }
+  console.log("users", users);
+  res.status(200).json({ msg: "User Added!" });
+});
+app.post("/login", (req, res) => {
+  let { email, password } = req.body;
+  console.log("email, pwd", email, password);
+  let userInfo = users.filter(
+    (user) => user.email === email && user.password === password
+  )[0];
+  if (userInfo) {
+    res.status(200).json({ user: userInfo });
+  } else {
+    res.status(404).json({ msg: "Invalid Credentials" });
+  }
+});
+app.get("/data", (req, res) => {
+  res.status(200).json({ users: users });
+});
+
+app.listen(PORT, () => {
+  console.log(`Example app listening at http://localhost:${PORT}`);
+});
 module.exports = app;
