@@ -5,5 +5,145 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Todo APp</title>
   </head>
-  <body></body>
+  <body onload="loaded();">
+    <h1>Todo App</h1>
+    <form id="todoForm">
+      <input type="text" required placeholder="Enter todo..." id="todoInput" />
+      <button type="submit" onclick="onSend()">Add</button>
+    </form>
+    <div>
+      <h3>Todos</h3>
+      <ul id="todos"></ul>
+    </div>
+
+    <script>
+      function loaded() {
+        fetchTodos();
+      }
+      function updateTodo(todoID, description) {
+        fetch(`http://localhost:3000/todos/${todoID}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ description: description }),
+        })
+          .then((res) => {
+            console.log("Task Updated!");
+            fetchTodos(); //refetch updated todos list
+          })
+          .catch((err) => console.log("__Fetch error", err));
+      }
+      function deleteTask(todoID) {
+        fetch(`http://localhost:3000/todos/${todoID}`, { method: "DELETE" })
+          .then((res) => {
+            console.log("Task Deleted!");
+            fetchTodos(); //refetch updated todos list
+          })
+          .catch((err) => console.log("__Fetch error", err));
+      }
+      function fetchTodos() {
+        fetch("http://localhost:3000/todos", { method: "GET" })
+          .then((res) => {
+            return res.json();
+          })
+          .then((data) => {
+            const todosList = document.querySelector("#todos");
+            todosList.innerHTML = "";
+
+            // Iterate over the todos array
+            data.todos.forEach((item) => {
+              // Create a new <li> element
+              const li = document.createElement("li");
+              const deleteButton = document.createElement("button");
+
+              // Set the text content of the <li> element to the todo item
+              li.textContent = `id: ${item.id} ---- todo: ${item.todo}`;
+
+              //adding delete todo btn
+              deleteButton.innerText = "Delete";
+              deleteButton.style.marginLeft = ".5rem";
+              deleteButton.addEventListener("click", function () {
+                // Remove the corresponding todo from the array
+                deleteTask(item.id);
+              });
+              // Append the delete button to the <li> element
+              li.appendChild(deleteButton);
+              // Add click event listener to the <li> element
+              li.addEventListener("click", function () {
+                // Create <input> element
+                const input = document.createElement("input");
+                const updateButton = document.createElement("button");
+                const cancleButton = document.createElement("button");
+                const form = document.createElement("form");
+                const formCtr = document.createElement("div");
+                //initializing input and btn
+                input.placeholder = "New todo data";
+                updateButton.textContent = "Update";
+                cancleButton.textContent = "Cancel";
+                updateButton.type = "submit";
+                input.type = "text";
+                input.value = item.todo;
+                input.required = true;
+                form.append(input);
+                form.append(updateButton);
+                form.addEventListener("submit", function (event) {
+                  event.preventDefault(); // Prevent form submission
+                  if (input.value.length > 0) updateTodo(item.id, input.value);
+                });
+                form.style.display = "flex";
+                form.style.gap = ".5rem";
+                cancleButton.addEventListener("click", fetchTodos);
+                formCtr.append(form);
+                formCtr.append(cancleButton);
+                formCtr.style.display = "flex";
+                formCtr.style.gap = ".5rem";
+                
+                // Replace the <li> element with the <input> element
+                this.replaceWith(formCtr);
+
+                // Focus on the <input> element
+                input.focus();
+              });
+
+              // Append the <li> element to the <ul> element
+              todosList.appendChild(li);
+            });
+          })
+          .catch((err) => console.log("__Fetch error", err));
+      }
+      function onSend() {
+        // Select the form and input element
+        const form = document.getElementById("todoForm");
+        const input = document.getElementById("todoInput");
+
+        // Add an event listener for the form submission
+        form.addEventListener("submit", function (event) {
+          event.preventDefault(); // Prevent form submission
+
+          const inputValue = input.value; // Get the input value
+          fetch("http://localhost:3000/todos", {
+            method: "POST",
+            headers: {
+              //this is extremely mandatory or else server won't be able to parse the content
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ description: inputValue }),
+          })
+            .then((response) => {
+              console.log("Todo Added!");
+              fetchTodos();
+            })
+            .catch((error) => {
+              // Handle any errors that occur during the request
+              console.error("Error:", error);
+            });
+
+          // You can perform further actions with the input value here
+          // Reset the form
+          form.reset();
+        });
+      }
+    </script>
+  </body>
 </html>

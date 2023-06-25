@@ -39,11 +39,130 @@
 
   Testing the server - run `npm run test-todoServer` command in terminal
  */
-const express = require('express');
-const bodyParser = require('body-parser');
-
+const express = require("express");
+const { v4: uuidv4 } = require("uuid");
+const path = require("path");
+const bodyParser = require("body-parser");
+const fs = require("fs");
 const app = express();
+// const FE_URL = "http://127.0.0.1:5500/index.html"
+// // Define middleware to whitelist the URL
+// app.use((req, res, next) => {
+//   const whitelistUrl = FE_URL;
+
+//   if (req.headers.referer === whitelistUrl) {
+//     // Request is coming from the whitelisted URL
+//     next();
+//   } else {
+//     // Request is not from the whitelisted URL, reject it
+//     res.status(403).send("Access denied.");
+//   }
+// });
 
 app.use(bodyParser.json());
+//returing our FE app to avoid CORS error
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname + "/index.html"));
+});
+
+const readTodos = () => {
+  return new Promise((resolve, reject) => {
+    fs.readFile("todos.json", "utf-8", (err, data) => {
+      if (err) reject({ msg: "Error fetching todos!" });
+      resolve(JSON.parse(data));
+    });
+  });
+};
+const writeTodos = (todos) => {
+  return new Promise((resolve, reject) => {
+    fs.writeFile("todos.json", JSON.stringify(todos), (err) => {
+      if (err) reject({ msg: "Error adding todos!" });
+      resolve({ msg: "Todos Added/Updated!" });
+    });
+  });
+};
+//get all todos
+app.get("/todos", (req, res) => {
+  readTodos()
+    .then((data) => res.status(200).json(data))
+    .catch((err) => res.status(500).json(err));
+  // res.json({ todos: todos });
+});
+//add todo
+app.post("/todos", (req, res) => {
+  const { description } = req.body;
+  if (description) {
+    const timeElapsed = Date.now();
+    const today = new Date(timeElapsed);
+    readTodos()
+      .then((data) => {
+        let todosDB = { ...data };
+        todosDB.todos.push({
+          id: uuidv4(),
+          todo: description,
+          time: today.toUTCString(),
+        });
+        writeTodos(todosDB)
+          .then((data) => res.status(200).json(data))
+          .catch((err) => res.status(400).json(err));
+      })
+      .catch((err) => res.status(400).json(err));
+  }
+});
+//get todo
+app.get("/todos/:id", (req, res) => {
+  readTodos()
+    .then((data) => {
+      const todo = data.todos.filter((todo) => todo.id === req.params.id)[0];
+      if (todo) res.json(todo);
+      else res.status(400).json({ msg: "Todo doesn't exists" });
+    })
+    .catch((err) => res.status(400).json(err));
+});
+
+//update todo
+app.put("/todos/:id", (req, res) => {
+  const { description } = req.body;
+  const todoID = req.params.id;
+  readTodos()
+    .then((data) => {
+      let todosDB = { ...data };
+      if (todosDB.todos.filter((todo) => todo.id === todoID).length > 0) {
+        const _todos = todosDB.todos.map((todo) => {
+          if (todo.id === todoID) {
+            todo.todo = description;
+          }
+          return todo;
+        });
+        writeTodos({ todos: _todos })
+          .then((data) => res.status(200).json(data))
+          .catch((err) => res.status(400).json(err));
+      } else {
+        res.status(400).json({ msg: "Todo not found!" });
+      }
+    })
+    .catch((err) => res.status(400).json(err));
+});
+//delete todo
+app.delete("/todos/:id", (req, res) => {
+  const todoID = req.params.id;
+  readTodos()
+    .then((data) => {
+      let todosDB = { ...data };
+      if (todosDB.todos.filter((todo) => todo.id === todoID).length > 0) {
+        const _todos = todosDB.todos.filter((todo) => todo.id !== todoID);
+        writeTodos({ todos: _todos })
+          .then((data) => res.status(200).json(data))
+          .catch((err) => res.status(400).json(err));
+      } else {
+        res.status(400).json({ msg: "Todo not found!" });
+      }
+    })
+    .catch((err) => res.status(400).json(err));
+});
+//get file contents
+app.listen(3000, () => {
+  console.log(`Example app listening at http://localhost:${3000}`);
+});
 
 module.exports = app;
